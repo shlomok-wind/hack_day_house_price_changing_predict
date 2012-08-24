@@ -1,0 +1,123 @@
+mongoimport -d bigdata -c rpdata --type csv --file $file -f id,unit_number,street_number_low,street_number_high,street_name,street_type,street_direction,suburb,state,postcode,property_type,bedrooms,bathrooms,landsize,latitude,longitude,last_sale_price_range_low,last_sale_price_range_high,last_sale_year_month,last_sale_method,last_sale_agency_name,last_sale_agency_id,listing_ids,valuation_range_low,valuation_range_high
+
+year                                    ,2011
+month					,01
+day					,12
+seq                                     ,33
+id                                      1000032			     
+, unit_number				,			     
+, street_number_low			,4			     
+, street_number_high			,			     
+, street_name				,ALT			     
+, street_type				,CRESCENT		     
+, street_direction			,			     
+, suburb				,AINSLIE		     
+, state					,ACT			     
+, postcode				,2602			     
+, property_type				,HOUSE			     
+, bedrooms				,4			     
+, bathrooms				,2			     
+, landsize				,1032			     
+, latitude				,-35.27432057		     
+, longitude				,149.14349799		     
+, last_sale_price_range_low		,650001			     
+, last_sale_price_range_high		,700000			     
+, last_sale_year_month			,200211			     
+, last_sale_method			,Normal Sale		     
+, last_sale_agency_name			,			     
+, last_sale_agency_id			,A			     
+, listing_ids				,106686784		     
+, valuation_range_low			,675001			     
+, valuation_range_high            	,900000                      
+
+
+m = function() {
+  if (this.landsize > 0)
+  {
+  seq_key = NumberInt(this.seq/10);
+  if (this.last_sale_price_range_high > 0 && this.last_sale_price_range_low >0)
+     emit(seq_key, {seq:seq_key, avg_price:0, price: (this.last_sale_price_range_high + this.last_sale_price_range_low)/ this.landsize, count:1});
+  else if (this.valuation_range_high > 0 && this.valuation_range_low > 0)
+     emit(seq_key, {seq:seq_key, avg_price:0, price: (this.valuation_range_high + this.valuation_range_low) / this.landsize, count:1});
+  }
+};
+
+r = function (key, values) {
+    r = {seq:key, avg_price:0, price:0, count:0};
+    values.forEach(function (v) {r.price += v.price;r.count += v.count;});
+    return r;
+};
+
+function finalizef(key, value) {
+  if (value.count > 0)
+     value.avg_price = value.price / value.count / 2;
+  return value;
+};
+
+s = db.rpdata.mapReduce(m, r, {finalize:finalizef, out : "price"})
+
+> s = db.rpdata.mapReduce(m, r, {out : "price"})
+{
+	"result" : "price",
+	"timeMillis" : 1277086,
+	"counts" : {
+		"input" : 19477443,
+		"emit" : 19477443,
+		"reduce" : 214252,
+		"output" : 194775
+	},
+	"ok" : 1,
+}
+
+
+
+> ... ... ... ... > > 
+> 
+> s = db.rpdata.mapReduce(m, r, {finalize:finalizef, out : "price"})
+Fri Aug 24 09:39:23 uncaught exception: map reduce failed:{ "errmsg" : "ns doesn't exist", "ok" : 0 }
+> use bigdata
+switched to db bigdata
+> m
+
+m = function () {
+    if (this.landsize > 0) {
+        seq_key = NumberInt(this.seq / 100);
+        //if (this.last_sale_price_range_high > 0 &&
+        //    this.last_sale_price_range_low > 0) {
+        //    emit(seq_key, {seq:seq_key, avg_price:0, price:(this.last_sale_price_range_high + this.last_sale_price_range_low) / this.landsize, count:1});
+        //} else 
+       if (this.valuation_range_high > 0 && this.valuation_range_low > 0) {
+            emit(seq_key, {seq:seq_key, avg_price:0, price:(this.valuation_range_high + this.valuation_range_low) / this.landsize, count:1});
+        }
+    }
+}
+
+
+r = function (key, values) {
+    r = {seq:key, avg_price:0, price:0, count:0};
+    values.forEach(function (v) {r.price += v.price;r.count += v.count;});
+    return r;
+}
+function finalizef(key, value) {
+    if (value.count > 0) {
+        value.avg_price = value.price / value.count / 2;
+    }
+    return value;
+}
+
+s = db.rpdata.mapReduce(m, r, {finalize:finalizef, out : "price"})
+
+{
+	"result" : "price",
+	"timeMillis" : 730604,
+	"counts" : {
+		"input" : 19477443,
+		"emit" : 7345947,
+		"reduce" : 26799,
+		"output" : 19468
+	},
+	"ok" : 1,
+}
+> 
+
+
